@@ -23,7 +23,8 @@ library(GeneErrorMis)
 ```
 
 
-### [Data Analysis](https://github.com/QihuangZhang/GEEmix/blob/main/code/DataAnalysis/DataAnalysis_905_IVoptimcompcomp.R)
+### Data Analysis
+* [Analysis of Mice SNP data](https://github.com/QihuangZhang/GEEmix/blob/main/code/DataAnalysis/DataAnalysis_905_IVoptimcompcomp.R)
 
 
 ### Simulations
