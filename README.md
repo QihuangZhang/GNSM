@@ -7,9 +7,9 @@ by Qihuang Zhang and Grace Y. Yi.
 
 
 
-## File Structure
 
-Before implementing the code, need to install R package [GeneErrorMis](https://https://github.com/QihuangZhang/GeneErrorMis):
+
+Before implementing the code, R package [GeneErrorMis](https://https://github.com/QihuangZhang/GeneErrorMis) is needed to be installed:
 
 ``` r
 # install devtools if necessary
@@ -21,7 +21,7 @@ devtools::install_github('QihuangZhang/GeneErrorMis')
 # load
 library(GeneErrorMis)
 ```
-
+## File Structure
 
 ### Data Analysis
 * [Analysis of Mice SNP data](https://github.com/QihuangZhang/GEEmix/blob/main/code/DataAnalysis/DataAnalysis_905_IVoptimcompcomp.R)
