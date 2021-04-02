@@ -1,6 +1,5 @@
-###
-### Project GNM
-## As advised by referee, we conduct a two-stage GWAS, where in the first stage, we filter the SNPs with the highest association.
+### Project GNMM
+## As advised by referee, we consider a higher dimension of the SNP candidates.
 ## A sensitivity study is conducted to evaluate the performance of the method.
 
 #### 0 Project Information and Configuration ####
