@@ -4,6 +4,10 @@
 # measurement error in responses. Different from the Simulation 1, this simulation
 # evaluate the case using GEE method rather than likelihood approach.
 
+## Update Mar 17, 2021
+# Change covariate in the misclassification process to be part of covariate
+
+
 ## Update Feb 7th 
 #  Add covariates in the misclassification process
 
@@ -50,29 +54,8 @@ getAUC <- function(fp,tp){
   return(AUC)
 }
 
-likelihood_GQ<-function(Theta, weights, nodes, Y1, Y2, Covariates, R){
-  nbeta <- dim(Covariates)[2]
-  rett<-logLik_GQapprox_noerror(weights, nodes, Y1, Y2,Covariates, R,
-                  Theta[1:nbeta],Theta[(nbeta+1):(2*nbeta)],Theta[(2*nbeta)+1],Theta[2*nbeta+2])
-  return(rett)
-}
-
-score_GQ<-function(Theta, weights, nodes, Y1, Y2, Covariates, R){
-  nbeta <- dim(Covariates)[2]
-  score<-IL_score_noerror(weights, nodes, Y1, Y2, Covariates, R,  
-                   Theta[1:nbeta],Theta[(nbeta+1):(2*nbeta)],Theta[2*nbeta+1],Theta[2*nbeta+2])
-  return(score)
-}
-
-infomat_GQ<-function(Theta, weights, nodes, Y1, Y2, Covariates, R){
-  nbeta <- dim(Covariates)[2]
-  score<-IL_infomat_noerror(weights, nodes, Y1, Y2, Covariates, R,  
-                            Theta[1:nbeta],Theta[(nbeta+1):(2*nbeta)],Theta[2*nbeta+1],Theta[2*nbeta+2])
-  return(score)
-}
 
 GEE_UI <- function(Theta, Y1star, Y2star, Covariates){
-  # cat(theta, " \n")
   nbeta <- dim(Covariates)[2]
   return(GEE_UfuncIns(Y1star, Y2star, DesignMatrix1=as.matrix(Covariates), 
                       DesignMatrix2=as.matrix(Covariates), 
@@ -87,7 +70,6 @@ GEE_UI <- function(Theta, Y1star, Y2star, Covariates){
 
 GEE_UI_ErrMis <- function(Theta, Y1star, Y2star, Covariates, CovMis1, CovMis2,
                    gamma1, gamma, alpha1, alpha0, sigma_e){
-  # cat(theta, " \n")
   nbeta <- dim(Covariates)[2]
   return(GEE_UfuncIns(Y1star, Y2star, DesignMatrix1=as.matrix(Covariates), 
                       DesignMatrix2=as.matrix(Covariates),  CovMis1, CovMis2,
@@ -160,7 +142,6 @@ ROC_curve_GNMM <- function (path, theta)
     if (is.na(ROC$F1[r])) 
       ROC$F1[r] = 0
   }
-  # rm(precision, recall, tp.all, fp.all, path, theta, fn)
   ord.fp = order(ROC$fp)
   tmp1 = ROC$fp[ord.fp]
   tmp2 = ROC$tp[ord.fp]
@@ -168,8 +149,6 @@ ROC_curve_GNMM <- function (path, theta)
   return(list(fp = tmp1, tp = tmp2, AUC = ROC$AUC, F1= ROC$F1))
 }
 
-# LASSO <- LASSO1$beta[7:dim(cordcomp)[1],]
-# theta <- cordcomp[7:dim(cordcomp)[1],3]
 
 ROC_curve_LASSO <- function (LASSO, theta) 
 { ROC = list()
@@ -192,7 +171,6 @@ ROC_curve_LASSO <- function (LASSO, theta)
      if (is.na(ROC$F1[r])) 
         ROC$F1[r] = 0
   }
-  # rm(precision, recall, tp.all, fp.all, path, theta, fn)
   ord.fp = order(ROC$fp)
   tmp1 = ROC$fp[ord.fp]
   tmp2 = ROC$tp[ord.fp]
@@ -200,12 +178,6 @@ ROC_curve_LASSO <- function (LASSO, theta)
   return(list(fp = tmp1, tp = tmp2, AUC = ROC$AUC, F1= ROC$F1))
 }
 
-# graphhub <- huge.generator(n=1000,d=6,graph ="hub",g=2,vis=T)
-# graphcluster <- huge.generator(n=1000,d=6,graph ="cluster",g=2,vis=T)
-# graphscalefree <- huge.generator(n=1000,d=6,graph ="scale-free",vis=T)
-# graphhub$theta
-# graphcluster$theta
-# graphscalefree$theta
 thetas <- 0.2
 betas <- 0.5
 
@@ -214,12 +186,12 @@ betas <- 0.5
 
 ### For dubuging puprose (comment when not debugging)
 
-i <- 1
-nsample <-1000
-graphtype <- "bloc"
-sigma_e <- 0.7
-alphas <- c(-4,-1)
-gammas <- 0.5
+# i <- 1
+# nsample <-1000
+# graphtype <- "bloc"
+# sigma_e <- 0.7
+# alphas <- c(-4,-1)
+# gammas <- 0.5
 
 ### Generate true beta:
 ## true parameters (assume no intercept)
@@ -230,7 +202,7 @@ beta1pool <- runif(nbeta, 0.1, 0.7) * (2*rbinom(nbeta,1,0.5)-1)
 beta2pool <- runif(nbeta, 0.1, 0.7) * (2*rbinom(nbeta,1,0.5)-1)
 
 
-### Function:
+### Main Function:
 
 
 SIM3_main <- function(i,thetas, betas, nsample, graphtype, sigma_e, alphas, gammas){
@@ -307,6 +279,7 @@ invisible(capture.output(varsel <- huge(Xcov, lambda = NULL, nlambda = 30, lambd
                                         scr = F, scr.num = NULL, sym = "or", verbose = TRUE, cov.output =T)))
 
 panelty <-  seq(from = max(varsel$lambda)*3, to = 0, length.out = 30)
+
 #### 2.3 Step 2: regression analysis ####
 ## 2.3.1 Data Generation ####
 
@@ -360,26 +333,18 @@ Y2 <- ifelse(U < mu2expit,1,0)
 e <- rnorm(nsample,0,sigma_e)
 U2 <- runif(nsample,0,1)
 
-Z <- runif(nsample, -1,2)
+Z <- Xcov[,1] # runif(nsample, -1,2)
 CovMis2 <- data.frame(intercept= rep(1,nsample), Z=Z)
 CovMis2 <- as.matrix(CovMis2)
 
 
 # alphas <- c(-4,-1)   #1%
 # alphas <- c(-3,0)    #5%
-# alphas <- c(-2.5,0.5)    #10%
-# alphas <- c(-4,-0.5)
+# alphas <- c(-2.8,0.5)    #10%
 alphastcov <- as.matrix(CovMis2) %*% t(t(alphas))
-# mean(U2>expit(alphastcov))
 
 Y1star <- Y1 + gammas * Y2 + e
 Y2star <- ifelse(U2>expit(alphastcov),Y2,1-Y2)
-
-# ## Naive model
-# naive.model1 <- lm(Y1star ~ X + W)
-# true.model1 <- lm(Y1 ~ X + W)
-# naive.model2 <- glm(Y2star ~ X + W, family = binomial(link = logit))
-# true.model2 <- glm(Y2star ~ X + W, family = binomial(link = logit))
 
 CovMis1 <- cbind(rep(0,length(Y1star)),rep(1,length(Y1star)))
 
@@ -412,7 +377,6 @@ for (i in 1:dim(cordinates)[1]){
 }
 
 theta0 <- c(rep(0,(dim(cordinates)[1])*2),1,0)
-# theta1 <- c(beta1,beta2,1,1)
 
 ## 2.3.2.1 Simulation - point estimation ####
 
@@ -524,7 +488,7 @@ SIM3_main(i = 1, thetas = 0.2, betas = 0.4, nsample = 1000, graphtype="scfr",
           sigma_e = 0.1, alphas = c(-3,1), gammas = 0.5)
 
 ### 3.2 parallel computing ####
-cl = makeCluster( 80 ,outfile=paste0(ProjectName,".txt"))
+cl = makeCluster( 50 ,outfile=paste0(ProjectName,".txt"))
 
 clusterExport(cl=cl, varlist=c("seed_i", "expit","likelihood_GQ", "GEE_UI_ErrMis",
                                "score_GQ","infomat_GQ","ROC_curve_GNMM","ROC_curve_LASSO",
@@ -535,10 +499,10 @@ registerDoParallel(cl)
 
 
 #### 4.  Simulation Studies ####
-# alphas <- c(-4,-1)   #1%
+# alphas <- c(-5,-1)   #1%
 # alphas <- c(-3,0)    #5%
-# alphas <- c(c(-2.5,0.5))    #10%
-alphasset <- c(-4,-1,-3,0,-2.5,0.5)
+# alphas <- c(c(-2.8,0.5))    #10%
+alphasset <- c(-5,-1,-3,0,-2.8,0.1)
 alphassetM <-matrix(alphasset,nrow=2)
 ### 4.1 Study 1: Sample Size ####
 SIM3  <- foreach(sige=c(0.2,0.7)) %:% foreach(alas=1:3) %:% foreach(grty=c("bloc","hub","scfr")) %:% foreach(var1=1:1000) %dopar% {
@@ -582,7 +546,6 @@ for (i in 1:2) {
 
         betahat0_naive <- results[[num]][[1]]
         sd0_naive <- results[[num]][[2]]
-        # sd0 <- ifelse(abs(sd0)<100,sd0,NA)
         betas_naive <- rbind(betas_naive,betahat0_naive)
         betabias_naive <- rbind(betabias_naive, (betahat0_naive-betaItrue))
         sds_naive <- rbind(sds_naive, sd0_naive)
@@ -594,7 +557,6 @@ for (i in 1:2) {
 
         betahat0_props <- results[[num]][[4]]
         sd0_props <- results[[num]][[5]]
-        # sd0 <- ifelse(abs(sd0)<100,sd0,NA)
         betas <- rbind(betas,betahat0_props)
         betabias <- rbind(betabias, (betahat0_props-betaItrue))
         sds <- rbind(sds, sd0_props)
@@ -606,8 +568,6 @@ for (i in 1:2) {
 
       biasnaive <- colMeans(na.omit(betabias_naive),na.rm = T)
 
-      # sd_empnaive <- apply(betas_naive,MARGIN = 2, FUN = sd, na.rm = T)
-
       sd_empnaive <- apply(na.omit(betas_naive),MARGIN = 2, FUN = function(x){
         x.noout <-  remove_outliers(x)
         return( sd(x.noout,na.rm = T ) )
@@ -615,10 +575,6 @@ for (i in 1:2) {
 
       sd_modnaive <- colMeans(na.omit(sds_naive),na.rm = T)
 
-      # sd_modnaive <- sd_mod <- apply(na.omit(sds_naive),MARGIN = 2, FUN = function(x){
-      #   x.noout <-  remove_outliers(x)
-      #   return( mean(x.noout,na.rm = T ))
-      # })
       CIrate_naive <- colMeans(na.omit(CIs_naive),na.rm = T)
 
       bias1 <- colMeans(na.omit(betabias),na.rm = T)
@@ -632,10 +588,6 @@ for (i in 1:2) {
 
       sd_mod <- colMeans(na.omit(sds),na.rm = T)
 
-      # sd_mod <- sd_mod <- apply(na.omit(sds),MARGIN = 2, FUN = function(x){
-      #   x.noout <-  remove_outliers(x)
-      #   return( mean(x.noout,na.rm = T ))
-      # })
       CIrate <- colMeans(na.omit(CIs),na.rm = T)
       
       ### Only focus on the report for beta
@@ -671,10 +623,6 @@ colnames(results_agg) <- c("Type","Sigma_e","alpha","graph",
                            "biasprop", "sdempprop", "sdmodprop", "CI_prop")
 
 results_agg2 <- results_agg
-# results_agg2 <- cbind(results_agg[results_agg$Sigma_e==0.2,],
-#                       results_agg[results_agg$Sigma_e==0.7,
-#                         c("biasnaive", "sdempnaive", "sdmodnaive", "CI_naive",
-#                              "biasprop", "sdempprop", "sdmodprop", "CI_prop")])
 
 results_agg2[,1:4] <- results_agg2[,c(1,4,3,2)]
 
@@ -684,8 +632,6 @@ colnames(results_agg2) <- c("Type","Sigma_e","alpha","graph",
 
 results_agg2[,8]<-percent(results_agg2[,8], accuracy = .1)
 results_agg2[,12]<-percent(results_agg2[,12], accuracy = .1)
-# results_agg2[,16]<-percent(results_agg2[,16], accuracy = .1)
-# results_agg2[,20]<-percent(results_agg2[,20], accuracy = .1)
 
 xtable(results_agg2,digits = 3)
 save(results_agg2,file="results/Table2/Table2_KNO.RData")

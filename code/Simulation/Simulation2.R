@@ -1,5 +1,7 @@
 #### Simulation 2 #####
 
+# This simulation study can be used to reproduce Figures 1-2 and Tables 1/
+
 # This simulation evaluate the performance of the method without considering
 # measurement error in covariates. Different from the Simulation 1, this simulation
 # evaluate the case using GEE method rather than likelihood approach.
@@ -23,7 +25,7 @@
 set.seed(2019)
 seed_i <- sample(1000000,1000)
 ProjectName <- paste0("Simulation2")
-ncore <- 40
+ncore <- 30
 
 ## Parameter for parallel purpose
 TargetRegion <- c(1,1000) ## 1-200 201-400 401-600 601-800 800-1000
@@ -47,6 +49,8 @@ library(patchwork)
 
 
 ### 1.3 Global Functions ####
+
+# Auxilliary functions
 expit <- function(x){
   value <- exp(x)/(1+exp(x))
   ifelse(is.na(value),1,value) 
@@ -71,26 +75,7 @@ getAUC <- function(fp,tp){
   return(AUC)
 }
 
-likelihood_GQ<-function(Theta, weights, nodes, Y1, Y2, Covariates, R){
-  nbeta <- dim(Covariates)[2]
-  rett<-logLik_GQapprox_noerror(weights, nodes, Y1, Y2,Covariates, R,
-                  Theta[1:nbeta],Theta[(nbeta+1):(2*nbeta)],Theta[(2*nbeta)+1],Theta[2*nbeta+2])
-  return(rett)
-}
-
-score_GQ<-function(Theta, weights, nodes, Y1, Y2, Covariates, R){
-  nbeta <- dim(Covariates)[2]
-  score<-IL_score_noerror(weights, nodes, Y1, Y2, Covariates, R,  
-                   Theta[1:nbeta],Theta[(nbeta+1):(2*nbeta)],Theta[2*nbeta+1],Theta[2*nbeta+2])
-  return(score)
-}
-
-infomat_GQ<-function(Theta, weights, nodes, Y1, Y2, Covariates, R){
-  nbeta <- dim(Covariates)[2]
-  score<-IL_infomat_noerror(weights, nodes, Y1, Y2, Covariates, R,  
-                            Theta[1:nbeta],Theta[(nbeta+1):(2*nbeta)],Theta[2*nbeta+1],Theta[2*nbeta+2])
-  return(score)
-}
+# Functions in constructing estimating equations and their associated sensitivity matrix
 
 GEE_UI <- function(Theta, Y1star, Y2star, Covariates){
   # cat(theta, " \n")
@@ -169,7 +154,7 @@ ROC_curve_GNMM <- function (path, theta)
     if (is.na(ROC$F1[r])) 
       ROC$F1[r] = 0
   }
-  # rm(precision, recall, tp.all, fp.all, path, theta, fn)
+  
   ord.fp = order(ROC$fp)
   tmp1 = ROC$fp[ord.fp]
   tmp2 = ROC$tp[ord.fp]
@@ -177,8 +162,6 @@ ROC_curve_GNMM <- function (path, theta)
   return(list(fp = tmp1, tp = tmp2, AUC = ROC$AUC, F1= ROC$F1))
 }
 
-# LASSO <- LASSO1$beta[7:dim(cordcomp)[1],]
-# theta <- cordcomp[7:dim(cordcomp)[1],3]
 
 ROC_curve_LASSO <- function (LASSO, theta) 
 { ROC = list()
@@ -238,23 +221,19 @@ tmp2 = ROC$tp[ord.fp]
 ROC$AUC = sum(diff(tmp1) * (tmp2[-1] + tmp2[-length(tmp2)]))/2
 return(list(fp = tmp1, tp = tmp2, AUC = ROC$AUC, F1= ROC$F1))
 }
-# graphhub <- huge.generator(n=1000,d=6,graph ="hub",g=2,vis=T)
-# graphcluster <- huge.generator(n=1000,d=6,graph ="cluster",g=2,vis=T)
-# graphscalefree <- huge.generator(n=1000,d=6,graph ="scale-free",vis=T)
-# graphhub$theta
-# graphcluster$theta
-# graphscalefree$theta
-thetas <- 0.2
-betas <- 0.5
+
 
 
 #### 2. Implementation Function #####
 
 ### For dubuging puprose (comment when not debugging)
 
-i <- 1
-nsample <-300
-graphtype <- "hub"
+# i <- 1
+# thetas <- 0.2
+# betas <- 0.5
+# 
+# nsample <-300
+# graphtype <- "hub"
 
 ### Generate true beta:
 ## true parameters (assume no intercept)
@@ -308,14 +287,14 @@ SIM2_main <- function(i,thetas, nsample, graphtype){
                         Theta_scfr[4], 0, 0, 0, Theta_scfr[5], 1),ncol=6)
   
   ## block plot
-  Theta_bloc <- runif(3,0, 2*thetas) * (2*rbinom(3,1,0.5)-1)
+  Theta_bloc <- runif(5,0, 2*thetas) * (2*rbinom(5,1,0.5)-1)
   
   THETA_bloc <-matrix(c(1, Theta_bloc[1], Theta_bloc[2], 0, 0, 0,
                         Theta_bloc[1], 1, Theta_bloc[3], 0, 0, 0,
                         Theta_bloc[2], Theta_bloc[3], 1, 0, 0, 0,
-                        0, 0, 0, 1, 0, 0,
-                        0, 0, 0, 0, 1, 0,
-                        0, 0, 0, 0, 0, 1),ncol=6)
+                        0, 0, 0, 1, Theta_bloc[4], 0,
+                        0, 0, 0, Theta_bloc[4], 1, Theta_bloc[5],
+                        0, 0, 0, 0, Theta_bloc[5], 1),ncol=6)
   
   if (graphtype=="hub") {
     THETAgraph <- THETA_hub
@@ -370,9 +349,8 @@ SIM2_main <- function(i,thetas, nsample, graphtype){
   ## true parameters (assume no intercept)
   nbeta <- dim(cordinates_true)[1]
   #(main para)   (inter.) 
+  
   set.seed(2019)
-  # beta1 <- rnorm(nbeta, betas, 0.3) * (2*rbinom(nbeta,1,0.5)-1)
-  # beta2 <- rnorm(nbeta, betas, 0.3) * (2*rbinom(nbeta,1,0.5)-1)
   beta1 <- runif(nbeta, 0.1, 0.7) * (2*rbinom(nbeta,1,0.5)-1)
   beta2 <- runif(nbeta, 0.1, 0.7) * (2*rbinom(nbeta,1,0.5)-1)
   
@@ -443,19 +421,6 @@ SIM2_main <- function(i,thetas, nsample, graphtype){
     betaI <- ifelse(is.na(betaI),0,betaI)
     
     
-    # if (!any(is.na(betahat))) {
-    #   cov <- GEE_cov(betaI,Y1star = Y1, Y2star = Y2, 
-    #                  DesignMatrix1=as.matrix(DesMatrix),
-    #                  DesignMatrix2 = as.matrix(DesMatrix), 
-    #                  CovMis1 = matrix(rep(0,dim(DesMatrix)[1]*2),ncol=2), 
-    #                  CovMis2 = as.matrix(rep(1,dim(DesMatrix)[1])),
-    #                  gamma1 = 1, gamma=c(0,0), alpha1= -Inf, alpha0= -Inf, sigma_e = 0)
-    #   betaIsd <- sqrt(diag(cov))} else {
-    #     betaIsd <- rep(NA,length(betaI))
-    #   }
-    
-    
-    
     ## 2.3.3 RelNet ####
     ### 2.3.3.1 First Component ####
     
@@ -522,18 +487,7 @@ SIM2_main <- function(i,thetas, nsample, graphtype){
     
     betaI_RelNet <- c(final_RelNet$beta1.y,final_RelNet$beta2.y,betahat_RelNet[(length(betahat_RelNet)-1):length(betahat_RelNet)])
     betaI_RelNet <- ifelse(is.na(betaI),0,betaI)
-    
-    
-    # if (!any(is.na(betaI_RelNet))) {
-    #   cov_RelNet <- GEE_cov(betaI_RelNet,Y1star = Y1, Y2star = Y2, 
-    #                  DesignMatrix1=as.matrix(DesMatrixComp),
-    #                  DesignMatrix2 = as.matrix(DesMatrixComp), 
-    #                  CovMis1 = matrix(rep(0,dim(DesMatrixComp)[1]*2),ncol=2), 
-    #                  CovMis2 = as.matrix(rep(1,dim(DesMatrixComp)[1])),
-    #                  gamma1 = 1, gamma=c(0,0), alpha1= -Inf, alpha0= -Inf, sigma_e = 0)
-    #   betaIsd_RelNet <- sqrt(diag(cov_RelNet))} else {
-    #     betaIsd_RelNet <- rep(NA,length(theta0_RelNet))
-    #   }
+    s
     
      
     
@@ -591,152 +545,41 @@ SIM2_high <- function(i,thetas, nsample){
   library(Matrix)
   
   tryCatch({
-  ## hub plot
+  
   Theta_g <- runif(ndim^2,0, 4*thetas) * (rbinom(ndim^2,1,0.05)-rbinom(ndim^2,1,0.05))
 
   THETAgraph_high <- matrix(Theta_g, ncol = ndim)
+  
   Higher.Trian <-  THETAgraph_high
-
-  ## scale-free plot
-  # Theta_scfr <- runif(5,0, 2*thetas) * (2*rbinom(5,1,0.5)-1)
-  # 
-  # THETA_scfr <-matrix(c(1, Theta_scfr[1], Theta_scfr[2], Theta_scfr[3], 0, Theta_scfr[4], 
-  #                       Theta_scfr[1], 1, 0, 0, 0, 0,
-  #                       Theta_scfr[2], 0, 1, 0, 0, 0,
-  #                       Theta_scfr[3], 0, 0, 1, 0, 0,
-  #                       0, 0, 0, 0, 1, Theta_scfr[5],
-  #                       Theta_scfr[4], 0, 0, 0, Theta_scfr[5], 1),ncol=6)
-  
-  # if (graphtype=="hub") {
-  #   THETAgraph <- THETA_hub
-  # }else {
-  #   if (graphtype=="bloc") {
-  #     THETAgraph <- THETA_bloc
-  #   }else{
-  #     THETAgraph <- THETA_scfr
-  #   }
-  # }
-  # 
-  
-  # THETAgraph_high1 <- cbind(THETA_hub,matrix(0,nrow=6,ncol=ndim-6))
-  # THETAgraph_high2 <- cbind(matrix(0,nrow=6,ncol=6),THETA_scfr,matrix(0,nrow=6,ncol=ndim-12))
-  # THETAgraph_high <- rbind (THETAgraph_high1, THETAgraph_high2, matrix(0,nrow=ndim-12,ncol=ndim))  
   
   Higher.Trian[lower.tri(THETAgraph_high, diag = F)] <- 0
-  diag(Higher.Trian) <- rep(1,ndim)
-  #  <- t(Higher.Trian)
   
+  diag(Higher.Trian) <- rep(1,ndim)
+ 
   THETAgraph_high<- Higher.Trian %*%  t(Higher.Trian)
 
-  # diag(THETAgraph_high) <- rep(2,ndim)
-  # THETAgraph_high <- THETAgraph_high/2
   
   Xcov <- mvrnorm(n=nsample, mu=rep(0,ndim), Sigma=solve(THETAgraph_high)) 
+  
   #### 2.4.3.2 Step 1: variable selection ####
   ### Parameters
-  
   ### Selection Algorithm
   # use invisible() to suppress the function message
-  lambdas <- seq(from = 0.84, to = 0, length.out = 30)
+  lambdas <- seq(from = 1, to = 0, length.out = 30)
   
   invisible(capture.output(varsel <- huge(Xcov, lambda = lambdas^4, nlambda = 30, lambda.min.ratio = NULL, method = "mb",
                                           scr = F, scr.num = NULL, sym = "or", verbose = TRUE,cov.output =T)))
   
   panelty <-  seq(from = max(varsel$lambda)*30, to = 0, length.out = 30)
+  
   cutpointrho <-  (seq(from = 0, to = 1, length.out = 30))
+  
   cutpointrho <- cutpointrho^2
   
-  #### 2.4.3.3 Step 2: regression analysis ####
-  ##  Data Generation ####
-  
-  ### Generate the true data sets
-  
-  # mu1 <- DesMatrix %*% t(t(beta1)) 
-  # mu2 <- DesMatrix %*% t(t(beta2))
-  # 
-  # 
-  # ## Response
-  # epsilon <- rnorm(nsample,0,1)
-  # U <- runif(nsample,0,1)
-  # mu2expit <- expit(mu2)
-  # 
-  # Y1 <- mu1 +  epsilon
-  # Y2 <- ifelse(U < mu2expit,1,0)
-  # 
-    ## 2.4.3.4 Algorithm Implementation -- Proposed Approach ####
-    
-    ## Create the mismeasured data and the validation data
-    ## We start with a choice from the previous step ``varsel$path[[15]]"
-    # graph <- varsel$path[[15]]
-    # cordinates <- matrix(c(rep(0,ndim),1:ndim),ncol=2)
-    # 
-    # for (i in 1:(ndim-1)){
-    #   for (j in (i+1):ndim){
-    #     if (graph[i,j]==1){
-    #       cordinates <- rbind(cordinates,c(i,j))
-    #     }
-    #   }
-    # }
-    # 
-    # DesMatrixhat <- Xcov
-    # 
-    # for (i in 1:dim(cordinates)[1]){
-    #   DesMatrixhat <- cbind(DesMatrixhat,Xcov[,cordinates[i,1]]*Xcov[,cordinates[i,2]])
-    # }
-    # 
-    
-    # ## Naive models
-    # model1 <- lm(Y1~-1+DesMatrixhat)
-    # model2 <- glm(Y2~-1+DesMatrixhat, family = binomial(link="logit"))
-    # 
-    # coef1 <- coef(model1) + rnorm(length(coef(model1)),0,0.1)
-    # coef2 <- coef(model2) + rnorm(length(coef(model2)),0,1)
-    # # theta0 <- c(rep(0,(dim(cordinates)[1])*2),1,0)
-    # # theta0 <- c(coef1,rep(0,dim(cordinates)[1]),1,0)
-    # theta0 <- c(coef1,coef2/10,1,0)
-    # # theta0 <- c(coef1,beta2,1,0)
-    
-    # ## 2.4.3.5 Simulation - point estimation ####
-    # 
-    # NR <- nleqslv(theta0, GEE_UI, Y1star=Y1, Y2star=Y2, Covariates=DesMatrixhat,
-    #               jacobian=T, control=list(maxit=50))
-    # 
-    # betahat <- ifelse(abs(NR$x)<10,NR$x,NA)
-    # 
-    # 
-    # 
-    # ## 2.4.3.6 Results Rearrangement ####
-    # 
-    # thetaresults <- betahat
-    # betaresults <- data.frame(cordinates, beta1 = thetaresults[1:dim(cordinates)[1]], 
-    #                           beta2 = thetaresults[(dim(cordinates)[1]+1):(2*dim(cordinates)[1])])
-    # 
-    # 
-    # final_GNNM <- merge(cordtrue, betaresults,by = c("X1","X2"), all.x = T, all.y = F)
-    # 
-    # ## 2.4.3.7 Variance Estimation ####
-    # cat("Variance Estimation - GNSM /n")
-    # 
-    # betaI <- c(final_GNNM$beta1.y,final_GNNM$beta2.y,betahat[(length(betahat)-1):length(betahat)])
-    # betaI <- ifelse(is.na(betaI),0,betaI)
-    # 
-    # 
-    # if (!any(is.na(betahat))) {
-    #   cov <- GEE_cov(betaI,Y1star = Y1, Y2star = Y2, 
-    #                  DesignMatrix1=as.matrix(DesMatrix),
-    #                  DesignMatrix2 = as.matrix(DesMatrix), 
-    #                  CovMis1 = matrix(rep(0,dim(DesMatrix)[1]*2),ncol=2), 
-    #                  CovMis2 = as.matrix(rep(1,dim(DesMatrix)[1])),
-    #                  gamma1 = 1, gamma=c(0,0), alpha1= -Inf, alpha0= -Inf, sigma_e = 0)
-    #   betaIsd <- sqrt(diag(cov))} else {
-    #     betaIsd <- rep(NA,length(betaI))
-    #   }
-    
-    
-    
-    ## 2.4.4 RelNet ####
+ 
+  ## 2.4.4 RelNet ####
     cat("RelNet Method \n")
-    ### 2.4.4.1 First Component ####
+  ## 2.4.4.1 First Component ####
     
     Cov_Matrix <- cor(Xcov)
     
@@ -762,15 +605,6 @@ SIM2_high <- function(i,thetas, nsample){
     RelNetTP <- unlist(lapply(results_RelNet, `[[`, 1))
     RelNetFP <- unlist(lapply(results_RelNet, `[[`, 2))
     
-    
-    #### 2.4.5.2 Comparing the results of the second stage ####
-    # Norm1GNNM <- (colSums(abs(final_GNNM[,5:6]-final_GNNM[,3:4]),na.rm=T))
-    # Norm1RelNet <- (colSums(abs(final_RelNet[,5:6]-final_RelNet[,3:4]),na.rm=T))
-    # 
-    # Norm2GNNM <- sqrt(colSums((final_GNNM[,5:6]-final_GNNM[,3:4])^2,na.rm=T))
-    # Norm2RelNet <- sqrt(colSums((final_RelNet[,5:6]-final_RelNet[,3:4])^2,na.rm=T))
-    
-    
     return(list( ROCGNMM = ROCGNMM, 
                  RelNetTP = RelNetTP,
                  RelNetFP = RelNetFP))
@@ -783,25 +617,24 @@ SIM2_high <- function(i,thetas, nsample){
 #### 3. Implementation ####
 ### 3.1 Example ####
 ### block plot ####
-# SIM2_main(i = 1, thetas = 0.3, nsample = 200, graphtype="bloc")
-# 
-# ### hub plot ####
-# SIM2_main(i = 1, thetas = 0.3, nsample = 250, graphtype="hub")
-# 
-# ### scale-free plot ####
-# SIM2_main(i = 1, thetas = 0.3, nsample = 250, graphtype="scfr")
+SIM2_main(i = 1, thetas = 0.3, nsample = 200, graphtype="bloc")
+
+### hub plot ####
+SIM2_main(i = 1, thetas = 0.3, nsample = 250, graphtype="hub")
+
+### scale-free plot ####
+SIM2_main(i = 1, thetas = 0.3, nsample = 250, graphtype="scfr")
 
 ### scale-free high-dimension ####
-# start <- proc.time()
-# SIM2_high(i = 1, thetas = 0.3, nsample = 4000)
-# end <- proc.time() - start
-# end[3]
+start <- proc.time()
+SIM2_high(i = 1, thetas = 0.3, nsample = 4000)
+end <- proc.time() - start
+end[3]
 
 ### 3.2 parallel computing ####
 cl = makeCluster( ncore ,outfile=paste0("computelog/",ProjectName,".txt")) 
 
-clusterExport(cl=cl, varlist=c("seed_i", "expit","likelihood_GQ",
-                               "score_GQ","infomat_GQ","ROC_curve_GNMM","ROC_curve_LASSO",
+clusterExport(cl=cl, varlist=c("seed_i", "expit", "ROC_curve_GNMM","ROC_curve_LASSO",
                                "GEE_UI","GEE_SIGMA","GEE_GAMMA","GEE_GAMMA.inv","GEE_cov"))
 
 registerDoParallel(cl)
@@ -812,7 +645,7 @@ registerDoParallel(cl)
 
 # ### 4.1 Study 1: Low Dimension ####
 # c("bloc","hub","scfr")
-SIM1  <- foreach(nsample=c(50, 250, 500)) %:% foreach(grty=c("bloc","hub","scfr")) %:% foreach(var1=1:1000) %dopar% {
+SIM1  <- foreach(nsample=c(150, 250, 500)) %:% foreach(grty=c("bloc","hub","scfr")) %:% foreach(var1=1:1000) %dopar% {
   tryCatch({
     SIM2_main(i = var1, thetas = 0.35, nsample = nsample, graphtype = grty)
   }, error = function(e)   return(NULL) )
@@ -829,7 +662,7 @@ ResTable <- NULL
 
 graphtype <- c("bloc","hub","scfr")
 data.ROC <- NULL
-nsample <- c(50, 250, 500)
+nsample <- c(125, 250, 500)
 GNMMAUClist <- NULL
 RelNetAUClist <- NULL
 
@@ -850,7 +683,6 @@ for (k in 1:3){
     GNMMAUC <- getAUC(GNMMfp,GNMMtp)
     GNMMAUClist <- c(GNMMAUClist, GNMMAUC)
     
-    # method <- c(rep("GNMM",length(GNMMtp)),rep("LASSO1",length(LASSO1tp)),rep("LASSO2",length(LASSO2tp)))
     tps <- GNMMtp
     fps <- GNMMfp
     
@@ -869,10 +701,6 @@ for (k in 1:3){
     RelNetfptab <- c(0,colMeans(RelNetfptab,na.rm=T),1)
     RelNetAUC <- getAUC(RelNetfptab,RelNettptab)
     
-    # method <- c(rep("GNMM",length(GNMMtp)),rep("LASSO1",length(LASSO1tp)),rep("LASSO2",length(LASSO2tp)))
-    # tps <- GNMMtp
-    # fps <- GNMMfp
-    
     data.ROC.this <- data.frame(tps=RelNettptab, fps=RelNetfptab, graphtype = graphtype[i], 
                                 nsample=nsample[k], method = "RelNet")
     
@@ -886,7 +714,7 @@ for (k in 1:3){
 ### 4.2 Study 2: High Dimension ####
 
 
-SIM1_High  <- foreach(nsample=c(4000)) %:% foreach(grty=c("scfr")) %:% foreach(var1=1:1000) %dopar% {
+SIM1_High  <- foreach(nsample=c(5000)) %:% foreach(grty=c("scfr")) %:% foreach(var1=1:1000) %dopar% {
   start <- proc.time()
   results <-  SIM2_high(i = var1, thetas = 0.3, nsample = 5000)
   end <- proc.time() - start
@@ -906,7 +734,6 @@ ResTable <- NULL
 
 
 graphtype <- c("scfr")
-# data.ROC <- NULL
 nsample <- c(4000)
 GNMMAUClist <- NULL
 RelNetAUClist <- NULL
@@ -948,10 +775,6 @@ for (k in 1:1){
     RelNetfptab <- c(0,colMeans(RelNetfptab,na.rm=T),1)
     RelNetAUC <- getAUC(RelNetfptab,RelNettptab)
     
-    # method <- c(rep("GNMM",length(GNMMtp)),rep("LASSO1",length(LASSO1tp)),rep("LASSO2",length(LASSO2tp)))
-    # tps <- GNMMtp
-    # fps <- GNMMfp
-    
     data.ROC.this <- data.frame(tps=RelNettptab, fps=RelNetfptab, graphtype = graphtype[i], 
                                 nsample=nsample[k], method = "RelNet")
     
@@ -961,149 +784,71 @@ for (k in 1:1){
   }
 }
 
+#### 4.3 Plotting Figure 2 ####
+
+pdf(file = "output/fig2.pdf",height = 8, width = 12)
 
 
+  datp1 <- ggplot(data.ROC %>%
+                 filter(method == "GNSM" & graphtype  == "hub") %>%
+                 mutate(nsample = factor(nsample))
+                 , aes(x=fps, y=tps, group=nsample)) +
+    geom_line(aes(linetype=nsample,color=nsample),size=1.5)+
+    scale_color_manual(values = c("#7A989A", "#CF9546", "#C67052"))+
+    geom_point(aes(shape=nsample,color=nsample), size =2)+
+    labs(x = "False Positive Rate", y="True Positive Rate", shape = "Sample Size", linetype = "Sample Size", color = "Sample Size") +
+    labs(title="(a)") +
+    theme_bw() +
+    theme(text=element_text(size=12, family="mono"), axis.text = element_text(size = 14, family="mono"), panel.spacing = unit(1, "lines"),
+          legend.position="bottom") 
+  
+  
+  datp2 <- ggplot(data.ROC %>%
+                    filter(nsample == 250 & method == "GNSM") %>%
+                    mutate(graphtype = factor (graphtype, levels = c("bloc","hub","scfr"), labels = c("block","hub","scale-free")))
+                  , aes(x= fps, y= tps, group= graphtype)) +
+    geom_line(aes(linetype=graphtype,color=graphtype),size=1.5)+
+    scale_color_manual(values = c("#7A989A", "#C1AE8D", "#C67052")) +
+    geom_point(aes(shape=graphtype,color=graphtype), size =2)+
+    labs(x = "False Positive Rate", y="True Positive Rate", shape = "Graph Type", linetype = "Graph Type", color = "Graph Type") +
+    labs(title="(b)") +
+    theme_bw() +
+    theme(text=element_text(size=12, family="mono"), axis.text = element_text(size = 14, family="mono"), panel.spacing = unit(1, "lines"),
+          legend.position="bottom") 
+  
+  datp3 <- ggplot(data.ROC %>%
+                    filter(nsample == 250 & graphtype  == "hub"), aes(x=fps, y=tps, group=method)) +
+    geom_line(aes(linetype=method,color=method),size=1.5)+
+    scale_color_manual(values = c("#7A989A", "#CF9546", "#C67052"))+
+    geom_point(aes(shape=method,color=method), size =2)+
+    labs(x = "False Positive Rate", y="True Positive Rate", shape = "Method", linetype = "Method", color = "Method") +
+    labs(title="(c)") +
+    theme_bw() +
+    theme(text=element_text(size=12, family="mono"), axis.text = element_text(size = 14, family="mono"), panel.spacing = unit(1, "lines"),
+          legend.position="bottom") 
+  
+  datp4 <- ggplot(data.ROC.high, aes(x=fps, y=tps, group=method)) +
+    geom_line(aes(linetype=method,color=method),size=1.5)+
+    scale_color_manual(values = c("#7A989A", "#CF9546", "#C67052"))+
+    geom_point(aes(shape=method,color=method), size =2)+
+    labs(x = "False Positive Rate", y="True Positive Rate", shape = "Method", linetype = "Method", color = "Method") +
+    labs(title="(d)") +
+    theme_bw() +
+    theme(text=element_text(size=12, family="mono"), axis.text = element_text(size = 14, family="mono"), panel.spacing = unit(1, "lines"),
+          legend.position="bottom") 
+  
+  
+  (datp1 + datp2) / ( datp3 + datp4 )
 
 
-######## Present the AUG values in the curve #####
-### remove this part as suggested by Grace
-
-# dat_text0 <- data.frame(
-#   label = unlist(lapply(GNMMAUClist, FUN = function(x){
-#     paste0("AUC")
-#   })),
-#   nsample   = rep(c(200,1000), each=3),
-#   graphtype = rep(c("block","hub","scale-free"),times =2 ),
-#   fps = 0.75,
-#   tps = 0.35,
-#   stringsAsFactors = FALSE
-# )
-#
-# dat_text1 <- data.frame(
-#   label1 = unlist(lapply(GNMMAUClist, FUN = function(x){
-#     paste0("GNM    ",sprintf("%.3f", round(x,digits =3)))
-#     # paste0("GNMM")
-#   })),
-#   nsample   = rep(c(200,1000), each=3),
-#   graphtype = rep(c("block","hub","scale-free"),times =2 ),
-#   fps = 0.72,
-#   tps = 0.25,
-#   stringsAsFactors = FALSE
-# )
-#
-# dat_text2 <- data.frame(
-#   label1 = unlist(lapply(LASSO1AUClist, FUN = function(x){
-#     paste0("LASSO1  ",sprintf("%.3f", round(x,digits =3)))
-#     # paste0("GNMM")
-#   })),
-#   nsample   = rep(c(200,1000), each=3),
-#   graphtype = rep(c("block","hub","scale-free"),times =2 ),
-#   fps = 0.7,
-#   tps = 0.15,
-#   stringsAsFactors = FALSE
-# )
-#
-# dat_text3 <- data.frame(
-#   label1 = unlist(lapply(LASSO2AUClist, FUN = function(x){
-#     paste0("LASSO2  ",sprintf("%.3f", round(x,digits =3)))
-#     # paste0("GNMM")
-#   })),
-#   nsample   = rep(c(200,1000), each=3),
-#   graphtype = rep(c("block","hub","scale-free"),times =2 ),
-#   fps = 0.7,
-#   tps = 0.05,
-#   stringsAsFactors = FALSE
-# )
-
-pdf(file = "output/fig1_varselect.pdf",height = 14, width = 18)
-
-
-datp1 <- ggplot(data.ROC %>%
-               filter(method == "GNSM" & graphtype  == "hub") %>%
-               mutate(nsample = factor(nsample))
-               , aes(x=fps, y=tps, group=nsample)) +
-  geom_line(aes(linetype=nsample,color=nsample),size=1.5)+
-  scale_color_manual(values = c("#7A989A", "#CF9546", "#C67052"))+
-  # scale_color_brewer(type = 'div', palette = 'Blues', direction = 1) +
-  geom_point(aes(shape=nsample,color=nsample))+
-  labs(x = "False Negative Rate", y="True Positive Rate", shape = "Sample Size", linetype = "Sample Size", color = "Sample Size") +
-  labs(title="(a)") +
-  theme_bw() +
-  theme(text=element_text(size=12, family="mono"), axis.text = element_text(size = 14, family="mono"), panel.spacing = unit(1, "lines"),
-        legend.position="bottom") 
-# c("bloc","hub","scfr")
-
-datp2 <- ggplot(data.ROC %>%
-                  filter(nsample == 250 & method == "GNSM") %>%
-                  mutate(graphtype = factor (graphtype, levels = c("bloc","hub","scfr"), labels = c("block","hub","scale-free")))
-                , aes(x= fps, y= tps, group= graphtype)) +
-  geom_line(aes(linetype=graphtype,color=graphtype),size=1.5)+
-  scale_color_manual(values = c("#7A989A", "#C1AE8D", "#C67052")) +
-  # scale_color_brewer(type = 'div', palette = 'Blues', direction = 1) +
-  geom_point(aes(shape=graphtype,color=graphtype))+
-  labs(x = "False Negative Rate", y="True Positive Rate", shape = "Graph Type", linetype = "Graph Type", color = "Graph Type") +
-  labs(title="(c)") +
-  theme_bw() +
-  theme(text=element_text(size=12, family="mono"), axis.text = element_text(size = 14, family="mono"), panel.spacing = unit(1, "lines"),
-        legend.position="bottom") 
-
-datp3 <- ggplot(data.ROC %>%
-                  filter(nsample == 250 & graphtype  == "hub"), aes(x=fps, y=tps, group=method)) +
-  geom_line(aes(linetype=method,color=method),size=1.5)+
-  scale_color_manual(values = c("#7A989A", "#CF9546", "#C67052"))+
-  # scale_color_brewer(type = 'div', palette = 'Blues', direction = 1) +
-  geom_point(aes(shape=method,color=method))+
-  labs(x = "False Negative Rate", y="True Positive Rate", shape = "Method", linetype = "Method", color = "Method") +
-  labs(title="(b)") +
-  theme_bw() +
-  theme(text=element_text(size=12, family="mono"), axis.text = element_text(size = 14, family="mono"), panel.spacing = unit(1, "lines"),
-        legend.position="bottom") 
-
-datp4 <- ggplot(data.ROC.high, aes(x=fps, y=tps, group=method)) +
-  geom_line(aes(linetype=method,color=method),size=1.5)+
-  scale_color_manual(values = c("#7A989A", "#CF9546", "#C67052"))+
-  # scale_color_brewer(type = 'div', palette = 'Blues', direction = 1) +
-  geom_point(aes(shape=method,color=method))+
-  labs(x = "False Negative Rate", y="True Positive Rate", shape = "Method", linetype = "Method", color = "Method") +
-  labs(title="(d)") +
-  theme_bw() +
-  theme(text=element_text(size=12, family="mono"), axis.text = element_text(size = 14, family="mono"), panel.spacing = unit(1, "lines"),
-        legend.position="bottom") 
-
-
-(datp1 + datp3) / ( datp2 + datp4 )
-
-# p1 +
-#   geom_text(
-#     family = "mono", fontface="bold", size =5,
-#     data    = dat_text0,
-#     mapping = aes(x = fps, y = tps, label = label),
-#     inherit.aes=F
-#  )+
-#   geom_text(
-#     family = "mono", size =3,
-#     data    = dat_text1,
-#     mapping = aes(x = fps, y = tps, label = label1),
-#     inherit.aes=F
-#   ) + geom_text(
-#     family = "mono", size =3,
-#     data    = dat_text2,
-#     mapping = aes(x = fps, y = tps, label = label1),
-#     inherit.aes=F
-#   ) + geom_text(
-#     family = "mono", size =3,
-#     data    = dat_text3,
-#     mapping = aes(x = fps, y = tps, label = label1),
-#     inherit.aes=F
-#   )
 dev.off()
 
 
-#### 4.1.2 Step 2 Evaluation ####
+#### 4.4 Produce Table 1 ####
 
 Results <- NULL
 
-samplesize_range <- c(50, 250,500)
+samplesize_range <- c(125, 250,500)
 graph_range <- c("block","hub","scale-free")
 
 for (j in 1:3){
@@ -1142,15 +887,6 @@ for (j in 1:3){
   }
 }
 
-# Results_Long <- gather(Results, key = type, value = Measurements, Norm1GNNM:Norm2GNNM)
-# Results_Long <- cbind(Results_Long, Norm = rep(c("Norm1","Norm2"), each = dim(Results_Long)[1]/2))
-#
-# Results_rar <- Results_Long  %>% arrange((graph)) %>% arrange((samplesize)) %>% arrange((type))
-#
-# # Results_c <- data.frame(Results_rar[Results_rar$Norm=="Norm1",], Norm2 = Results_rar[Results_rar$Norm=="Norm2","Measurements"])
-# Results_rar$Method <- ifelse (Results_rar$Method %in% c("Norm1GNNM","Norm2GNNM"),"GNNM","LASSO")
-
-
 Results_Wide1 <- spread(Results[,c("samplesize","graph", "type", "Norm1GNNM")], key = type , value = Norm1GNNM )
 Results_Wide2 <- spread(Results[,c("samplesize","graph", "type", "Norm2GNNM")], key = type , value = Norm2GNNM )
 Results_Wide3 <- spread(Results[,c("samplesize","graph", "type", "Norm1RelNet")], key = type , value = Norm1RelNet )
@@ -1158,7 +894,7 @@ Results_Wide4 <- spread(Results[,c("samplesize","graph", "type", "Norm2RelNet")]
 
 
 
-Results_final <- cbind(Results_Wide1,Results_Wide2[,3:4],Results_Wide3[,3:4],Results_Wide4[,3:4])
+Results_final <- cbind(Results_Wide1,Results_Wide3[,3:4],Results_Wide2[,3:4],Results_Wide4[,3:4])
 
 xtable(Results_final, digits = 3)
 
