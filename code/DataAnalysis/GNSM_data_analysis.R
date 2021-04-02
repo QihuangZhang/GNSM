@@ -146,6 +146,88 @@ SensiAnalysis <- function(alphasensi,sigma_esensi){
                               pscale = pscale)
 }
 
+#### plot the selected graph
+plot.selectgraph = function(x, ...){
+  if(x$cov.input){
+    cat("Model selection is not available when using the covariance matrix as input.")
+  }
+  if(!x$cov.input)
+  {
+    # par(mfrow=c(1,2), pty = "s", omi=c(0.3,0.3,0.3,0.3), mai = c(0.5,0.5,0.5,0.5))
+    par(mfrow=c(1,2))
+    g = graph.adjacency(as.matrix(x$refit), mode="undirected", diag=FALSE)
+    # layout.grid = layout.fruchterman.reingold(g)
+    # layout.grid = layout.reingold.tilford(g)
+    layout.grid = layout.kamada.kawai(g)
+    # layout.grid = layout.lgl(g)
+    
+    plot(g, layout=layout.grid, edge.color='gray50',vertex.color="white", vertex.size=0.1, vertex.label=SNPlist[-1*1:2], vertex.label.dist=0.5,vertex.label.degree =pi)
+    plot(x$lambda, x$sparsity, log = "x", xlab = "Regularization Parameter", ylab = "Sparsity Level", type = "l",xlim = rev(range(x$lambda)), main = "Solution path sparsity levels")
+    lines(x$opt.lambda,x$opt.sparsity,type = "p")
+  }
+}
+
+plot.selectgraph.ggplot2 = function(x, ...){
+  if(x$cov.input){
+    cat("Model selection is not available when using the covariance matrix as input.")
+  }
+  if(!x$cov.input)
+  {
+    # par(mfrow=c(1,2), pty = "s", omi=c(0.3,0.3,0.3,0.3), mai = c(0.5,0.5,0.5,0.5))
+    # par(mfrow=c(1,2))
+    g = graph.adjacency(as.matrix(x$refit), mode="undirected", diag=FALSE)
+    # layout.grid = layout.fruchterman.reingold(g)
+    # layout.grid = layout.reingold.tilford(g)
+    # layout.grid = layout.kamada.kawai(g)
+    # layout.grid = layout.lgl(g)
+    gmatrix <- as_edgelist(g)
+    gdegree <- degree(g, mode ="all")
+    
+    SNPlistpure <- SNPlist[-c(1,2)]
+    
+    gdegreeMatrix <- data.frame(SNPlistpure, gdegree)
+    
+    
+    edges <- as.data.frame(cbind(from_id = SNPlistpure[gmatrix[,1]], to_id = SNPlistpure[gmatrix[,2]]))
+    vertices <- as.data.frame(SNPlistpure)
+    MapObj <- fortify(as.edgedf(edges), vertices)
+    
+    MapObjd <- merge(MapObj, gdegreeMatrix, by.x = "from_id", by.y = "SNPlistpure" )
+    
+    MapObjd <- MapObjd %>% mutate(degree = sqrt(4 * gdegree + 4.5)) %>%
+      mutate(highlight1 = gdegree > 0) %>%
+      mutate(highlight2 = case_when(
+        gdegree == 0 ~ 0,
+        gdegree < 4 ~ 1,
+        TRUE ~ 2))
+    
+    MapObjd$highlight2 <- factor(MapObjd$highlight2, levels = 0:2, labels = c("0","<=4",">4"))
+    
+    p1 <- ggplot(data = MapObjd, aes(from_id = from_id, to_id = to_id)) +
+      geom_net(layout.alg = "kamadakawai", 
+               aes(fontsize = degree, color = highlight2),
+               size = 2, labelon = TRUE, vjust = -0.6, ecolour = "#7A989A",
+               directed =FALSE, ealpha = 0.4) +
+      scale_colour_manual(values = c("#626567","#7A989A", "#C67052")) +
+      xlim(c(-0.1, 1.05)) +
+      labs(color = "degree") +
+      theme_net() +
+      theme(legend.position = "bottom")
+    
+    datalineplot <-  data.frame(lambda = x$lambda,sparsity = x$sparsity)
+    
+    p2 <- ggplot(data=datalineplot) +
+      geom_line(aes(x=lambda, y=sparsity), color = "#7A989A",size = 1.2)+
+      geom_point(x = x$opt.lambda, y = x$opt.sparsity, color = "#C67052",size = 5) +
+      labs(x = "Regularization Parameter", y = "Sparsity Level") + 
+      theme_bw() +
+      theme(text=element_text(size=12, family="mono"), axis.text = element_text(size = 14, family="mono"), panel.spacing = unit(1, "lines")) 
+    
+    return(list(p1=p1,p2=p2))
+  }
+}
+
+
 integrate <- function(small,median,large){
   Tablelist <- list(small,median,large)
   FinalTable <- NULL
@@ -215,7 +297,7 @@ plotintegrate2 <- function(Atable) {
     labs(x = "Data Type", y = "Parameter Estimate") +
     labs(title="(a)") +
     theme(strip.background =element_rect(fill="#4F534A",color="#4F534A"))+ # #535b44
-    theme(strip.text = element_text(colour = 'white')) +
+    theme(strip.text = element_text(colour = 'white', size = 16)) +
     theme(panel.border = element_rect(colour = "#4F534A")) 
   
   TablefirstPvalue <- Atable %>% 
@@ -235,7 +317,7 @@ plotintegrate2 <- function(Atable) {
     labs(x = "Data Type", y = bquote("-"~log[10]~"P-value")) +
     labs(title="(b)") +
     theme(strip.background =element_rect(fill="#4F534A",color="#4F534A"))+ # #535b44
-    theme(strip.text = element_text(colour = 'white')) +
+    theme(strip.text = element_text(colour = 'white', size = 16)) +
     theme(panel.border = element_rect(colour = "#4F534A"))
   
   print(p1 / p2 +  plot_layout(heights = c(2, 1)))
@@ -337,27 +419,6 @@ Y2star <- data_GWAS$Y2star
 
 
 #### 1.1 GWAS study ####
-# GWAS_cont <- apply(genotype_QCed, MARGIN = 2, FUN = function(SNP){
-#   logitreg <- lm(Y1star~SNP)
-#   Zscore <- coef(logitreg)[2]/sqrt(vcov(logitreg)[2, 2])
-#   pvalue <- 2*(pnorm(-abs(Zscore)))
-#   return(pvalue)
-# })
-# 
-# GWAS_cont_Sort <- sort(GWAS_cont)
-# 
-# GWAS_bin <- apply(genotype_QCed, MARGIN = 2, FUN = function(SNP){
-#   logitreg <- glm(Y2star~SNP, family = binomial())
-#   Zscore <- coef(logitreg)[2]/sqrt(vcov(logitreg)[2, 2])
-#   pvalue <- 2*(pnorm(-abs(Zscore)))
-#   return(pvalue)
-# })
-# 
-# GWAS_bin_Sort <- sort(GWAS_bin)
-# 
-# ## Select the top 25th genes appeared in each study
-# Genelist <- unique(c(names(GWAS_cont_Sort)[1:50]))
-
 # SNPlist <- c("id", "discard", Genelist)
 
 SNPlist <- c("id","discard","rs45690064","rs27338905","rs32962338","rs33583459","rs224051056",
@@ -385,10 +446,6 @@ save(genotypes,file="file/genotypes2.RData")
 #### 2. Second Stage ####
 
 ## 2.1 Deciding covariates dependence structure ####
-
-### 
-
-
 
 ### Standardize the candidate genotypes 
 
@@ -431,98 +488,17 @@ for (i in 1:dim(EdgeTrue)[1]){
 }
 
 
-# DesMatrix <- scale(DesMatrix)
 
-
-#### plot the selected graph
-plot.selectgraph = function(x, ...){
-  if(x$cov.input){
-    cat("Model selection is not available when using the covariance matrix as input.")
-  }
-  if(!x$cov.input)
-  {
-    # par(mfrow=c(1,2), pty = "s", omi=c(0.3,0.3,0.3,0.3), mai = c(0.5,0.5,0.5,0.5))
-    par(mfrow=c(1,2))
-    g = graph.adjacency(as.matrix(x$refit), mode="undirected", diag=FALSE)
-    # layout.grid = layout.fruchterman.reingold(g)
-    # layout.grid = layout.reingold.tilford(g)
-    layout.grid = layout.kamada.kawai(g)
-    # layout.grid = layout.lgl(g)
-    
-    plot(g, layout=layout.grid, edge.color='gray50',vertex.color="white", vertex.size=0.1, vertex.label=SNPlist[-1*1:2], vertex.label.dist=0.5,vertex.label.degree =pi)
-    plot(x$lambda, x$sparsity, log = "x", xlab = "Regularization Parameter", ylab = "Sparsity Level", type = "l",xlim = rev(range(x$lambda)), main = "Solution path sparsity levels")
-    lines(x$opt.lambda,x$opt.sparsity,type = "p")
-  }
-}
-
-plot.selectgraph.ggplot2 = function(x, ...){
-  if(x$cov.input){
-    cat("Model selection is not available when using the covariance matrix as input.")
-  }
-  if(!x$cov.input)
-  {
-    # par(mfrow=c(1,2), pty = "s", omi=c(0.3,0.3,0.3,0.3), mai = c(0.5,0.5,0.5,0.5))
-    # par(mfrow=c(1,2))
-    g = graph.adjacency(as.matrix(x$refit), mode="undirected", diag=FALSE)
-    # layout.grid = layout.fruchterman.reingold(g)
-    # layout.grid = layout.reingold.tilford(g)
-    # layout.grid = layout.kamada.kawai(g)
-    # layout.grid = layout.lgl(g)
-    gmatrix <- as_edgelist(g)
-    gdegree <- degree(g, mode ="all")
-    
-    SNPlistpure <- SNPlist[-c(1,2)]
-    
-    gdegreeMatrix <- data.frame(SNPlistpure, gdegree)
-    
-    
-    edges <- as.data.frame(cbind(from_id = SNPlistpure[gmatrix[,1]], to_id = SNPlistpure[gmatrix[,2]]))
-    vertices <- as.data.frame(SNPlistpure)
-    MapObj <- fortify(as.edgedf(edges), vertices)
-    
-    MapObjd <- merge(MapObj, gdegreeMatrix, by.x = "from_id", by.y = "SNPlistpure" )
-    
-    MapObjd <- MapObjd %>% mutate(degree = sqrt(4 * gdegree + 4.5)) %>%
-      mutate(highlight1 = gdegree > 0) %>%
-      mutate(highlight2 = case_when(
-        gdegree == 0 ~ 0,
-        gdegree < 4 ~ 1,
-        TRUE ~ 2))
-    
-    MapObjd$highlight2 <- factor(MapObjd$highlight2, levels = 0:2, labels = c("0","<=4",">4"))
-    
-    p1 <- ggplot(data = MapObjd, aes(from_id = from_id, to_id = to_id)) +
-      geom_net(layout.alg = "kamadakawai", 
-               aes(fontsize = degree, color = highlight2),
-               size = 2, labelon = TRUE, vjust = -0.6, ecolour = "#C1AE8D",
-               directed =FALSE, ealpha = 0.4) +
-      scale_colour_manual(values = c("#7A989A", "#C1AE8D", "#C67052")) +
-      xlim(c(-0.1, 1.05)) +
-      labs(color = "degree") +
-      theme_net() +
-      theme(legend.position = "bottom")
-    
-    datalineplot <-  data.frame(lambda = x$lambda,sparsity = x$sparsity)
-    
-    p2 <- ggplot(data=datalineplot) +
-      geom_line(aes(x=lambda, y=sparsity), color = "#849271",size = 1.2)+
-      geom_point(x = x$opt.lambda, y = x$opt.sparsity, color = "#CF9546",size = 3) +
-      labs(x = "Regularization Parameter", y = "Sparsity Level") + 
-      theme_bw() +
-      theme(text=element_text(size=12, family="mono"), axis.text = element_text(size = 14, family="mono"), panel.spacing = unit(1, "lines")) 
-    
-    
-    p1 + p2 + plot_layout(widths = c(2, 1.2))
-  }
-}
-
-
-
-pdf(file = "output/figdatacov2.pdf",height = 6, width = 14)
 set.seed(2020)
-plot.selectgraph.ggplot2(out.select)
+figure3 <- plot.selectgraph.ggplot2(out.select)
+
+pdf(file = "output/figdatacov21.pdf",height = 6, width = 6)
+print(figure3[[1]])
 dev.off()
 
+pdf(file = "output/figdatacov22.pdf",height = 6, width = 7)
+print(figure3[[2]])
+dev.off()
 
 ## Mark the complete sample
 
@@ -557,10 +533,7 @@ CovMis2 <- as.matrix(data.frame(intercept=rep(1,nsample)))
 
 completedata <- as.matrix(cbind(Covariates_all[,! names(Covariates_all) %in% c("BW")])) 
 
-#### 3. Analysis  of 109 ####
-
-## 3.1 Naive Analysis of 109 ####
-
+#### 3. Analysis ####
 
 ## 3.2 Estimating Procedure ####
 
@@ -643,7 +616,7 @@ p1 <- ggplot(TablefirstPara, aes(x=type,y=propobeta)) +
   labs(x = "Data Type", y = "Parameter Estimate") +
   labs(title="(a)") +
   theme(strip.background =element_rect(fill="#4F534A",color="#4F534A"))+ # #535b44
-  theme(strip.text = element_text(colour = 'white')) +
+  theme(strip.text = element_text(colour = 'white', size =16)) +
   theme(panel.border = element_rect(colour = "#4F534A")) 
 
 p1
@@ -769,6 +742,56 @@ g2 = ggraph(datasetg2$mygraph, layout = 'dendrogram', circular = TRUE) +
 g1 + g2 +  plot_layout(widths = c(1, 1))
 dev.off()
 
+
+
+
+pdf(file = "output/figresultsmain4.pdf",height = 6, width = 14)
+set.seed(2018)
+
+datasetg1 <- EdgeBundling(Tablefirstat, outcomearg = "continuous", methodarg = "Naive")
+
+edge.pscale <- datasetg1$connect$pscale
+
+g1 = ggraph(datasetg1$mygraph, layout = 'dendrogram', circular = TRUE) + 
+  geom_node_point(aes(filter = leaf, x = x*1.05, y=y*1.05, size= pscale), alpha = 0.8, color = "#C67052") +
+  geom_conn_bundle(data = get_con(from = datasetg1$from, to = datasetg1$to, edge.pscale=edge.pscale), aes(width = edge.pscale), colour= "#7A989A", alpha=0.3) +
+  geom_node_text(aes(x = x*1.25, y=y*1.25, filter = leaf, label=name, angle = angle, hjust=hjust), size=2.3, alpha=1, color = "#C1AE8D") +
+  # scale_edge_colour_gradient(low="#CF9546", high="#C67052") +
+  theme_void() +
+  theme(
+    legend.position="right",
+    plot.margin=unit(c(0,0,0,0),"cm"),
+    text=element_text(size=12, family="mono"),
+  ) + 
+  labs(title="(b) Continuous") +
+  labs(size = bquote(atop("-"~log[10]~"P-value","of vertix")), edge_width = bquote(atop("-"~log[10]~"P-value","of edge"))) +
+  guides(size = guide_legend(title.theme = element_text( size = 9 )),
+         edge_width = guide_legend(title.theme = element_text( size = 9 ))) +
+  expand_limits(x = c(-1.2, 1.2), y = c(-1.2, 1.2))
+
+datasetg2 <- EdgeBundling(Tablefirstat, outcomearg = "discrete", methodarg = "Naive")
+
+edge.pscale2 <- datasetg2$connect$pscale
+
+g2 = ggraph(datasetg2$mygraph, layout = 'dendrogram', circular = TRUE) + 
+  geom_node_point(aes(filter = leaf, x = x*1.05, y=y*1.05, size= pscale), alpha = 0.8, color = "#C67052") +
+  geom_conn_bundle(data = get_con(from = datasetg2$from, to = datasetg2$to, edge.pscale2=edge.pscale2), aes(width = edge.pscale2), colour= "#849271", alpha=0.3) +
+  geom_node_text(aes(x = x*1.25, y=y*1.25, filter = leaf, label=name, angle = angle, hjust=hjust), size=2.3, alpha=1, color = "#C1AE8D") +
+  # scale_edge_colour_gradient(low="#CF9546", high="#C67052") +
+  theme_void() +
+  theme(
+    legend.position="right",
+    plot.margin=unit(c(0,0,0,0),"cm"),
+    text=element_text(size=12, family="mono"),
+  ) + 
+  labs(title="   Discrete") +
+  labs(size = bquote(atop("-"~log[10]~"P-value","of vertix")), edge_width = bquote(atop("-"~log[10]~"P-value","of edge"))) +
+  guides(size = guide_legend(title.theme = element_text( size = 9 )),
+         edge_width = guide_legend(title.theme = element_text( size = 9 ))) +
+  expand_limits(x = c(-1.2, 1.2), y = c(-1.2, 1.2))
+
+g1 + g2 +  plot_layout(widths = c(1, 1))
+dev.off()
 
 ## Low Measurement Error
 Tablelow0.52 <- SensiAnalysis(-2.944,0.52) 

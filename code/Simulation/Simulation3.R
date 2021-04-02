@@ -4,6 +4,10 @@
 # measurement error in responses. Different from the Simulation 1, this simulation
 # evaluate the case using GEE method rather than likelihood approach.
 
+## Update Mar 17, 2021
+# Change covariate in the misclassification process to be part of covariate
+
+
 ## Update Feb 7th 
 #  Add covariates in the misclassification process
 
@@ -360,7 +364,7 @@ Y2 <- ifelse(U < mu2expit,1,0)
 e <- rnorm(nsample,0,sigma_e)
 U2 <- runif(nsample,0,1)
 
-Z <- runif(nsample, -1,2)
+Z <- Xcov[,1] # runif(nsample, -1,2)
 CovMis2 <- data.frame(intercept= rep(1,nsample), Z=Z)
 CovMis2 <- as.matrix(CovMis2)
 
@@ -524,7 +528,7 @@ SIM3_main(i = 1, thetas = 0.2, betas = 0.4, nsample = 1000, graphtype="scfr",
           sigma_e = 0.1, alphas = c(-3,1), gammas = 0.5)
 
 ### 3.2 parallel computing ####
-cl = makeCluster( 80 ,outfile=paste0(ProjectName,".txt"))
+cl = makeCluster( 50 ,outfile=paste0(ProjectName,".txt"))
 
 clusterExport(cl=cl, varlist=c("seed_i", "expit","likelihood_GQ", "GEE_UI_ErrMis",
                                "score_GQ","infomat_GQ","ROC_curve_GNMM","ROC_curve_LASSO",
@@ -535,10 +539,10 @@ registerDoParallel(cl)
 
 
 #### 4.  Simulation Studies ####
-# alphas <- c(-4,-1)   #1%
+# alphas <- c(-5,-1)   #1%
 # alphas <- c(-3,0)    #5%
-# alphas <- c(c(-2.5,0.5))    #10%
-alphasset <- c(-4,-1,-3,0,-2.5,0.5)
+# alphas <- c(c(-2.8,0.5))    #10%
+alphasset <- c(-5,-1,-3,0,-2.5,0.1)
 alphassetM <-matrix(alphasset,nrow=2)
 ### 4.1 Study 1: Sample Size ####
 SIM3  <- foreach(sige=c(0.2,0.7)) %:% foreach(alas=1:3) %:% foreach(grty=c("bloc","hub","scfr")) %:% foreach(var1=1:1000) %dopar% {
