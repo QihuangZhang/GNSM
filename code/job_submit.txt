@@ -1,0 +1,19 @@
+cd Work/2019/GNSM
+
+nohup R CMD BATCH code/Simulation/ressumTable2.R
+nohup R CMD BATCH code/Simulation/Simulation2.R computelog/Sim2_Mar30.Rout & 
+
+nohup R CMD BATCH code/Simulation/Simulation3.R computelog/Sim3_Mar22.Rout & 
+nohup R CMD BATCH code/Simulation/Simulation4.R computelog/Sim4_Mar22.Rout & 
+nohup R CMD BATCH code/Simulation/Simulation5.R computelog/Sim5_Mar22.Rout & 
+
+
+install.packages("GeneErrorMis_1.0.2.tar.gz", repos = NULL, type="source")
+
+
+
+nohup R CMD BATCH code/DataAnalysis/NewDataAnalysis/GNSM_data_analysis.R &
+
+
+
+

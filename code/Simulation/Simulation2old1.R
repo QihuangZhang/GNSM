@@ -1,16 +1,9 @@
 #### Simulation 2 #####
 
-# This simulation study can be used to reproduce Figures 1-2 and Tables 1/
-
-
 # This simulation evaluate the performance of the method without considering
 # measurement error in covariates. Different from the Simulation 1, this simulation
 # evaluate the case using GEE method rather than likelihood approach.
 
-
-## Update: Jan 15, 2020
-# 1. the Theta is the precision matrix rather than covariance matrix
-# 2. make the parameter beta fixed in each simulation
 
 
 #### 1. Set up ####
@@ -288,7 +281,7 @@ if (graphtype=="hub") {
 
 
 
-Xcov <- mvrnorm(n=nsample, mu=rep(0,6), Sigma=solve(THETAgraph)) 
+Xcov <- mvrnorm(n=nsample, mu=rep(0,6), Sigma=THETAgraph) 
 #### 2.2 Step 1: variable selection ####
 ### 2.2.1 Parameters
 
@@ -329,7 +322,6 @@ cordinates_true <- rbind(cordinates_true, EdgeTrue)
 ## true parameters (assume no intercept)
 nbeta <- dim(cordinates_true)[1]
 #(main para)   (inter.) 
-set.seed(2019)
 beta1 <- rnorm(nbeta, betas, 0.3) * (2*rbinom(nbeta,1,0.5)-1)
 beta2 <- rnorm(nbeta, betas, 0.3) * (2*rbinom(nbeta,1,0.5)-1)
 
