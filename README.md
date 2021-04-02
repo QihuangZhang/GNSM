@@ -24,7 +24,7 @@ library(GeneErrorMis)
 ## File Structure
 
 ### Data Analysis
-* [Analysis of Mice SNP data](https://github.com/QihuangZhang/GEEmix/blob/main/code/DataAnalysis/DataAnalysis_905_IVoptimcompcomp.R)
+* [Analysis of Mice SNP data](https://github.com/QihuangZhang/GNSM/blob/main/code/DataAnalysis/GNSM_data_analysis.R)
 
 
 ### Simulations
