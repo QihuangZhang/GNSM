@@ -34,3 +34,9 @@ library(GeneErrorMis)
   * [Internal Validation](https://github.com/QihuangZhang/GNSM/blob/main/code/Simulation/Simulation4.R)
   * [External Validation](https://github.com/QihuangZhang/GNSM/blob/main/code/Simulation/Simulation5.R)
 
+
+Please cite the following publication:
+ Zhang, Qihuang, and Grace Y. Yi. "Generalized network structured models with mixed responses subject to measurement error and misclassification." Biometrics (2022).
+> *Generalized network structured models with mixed responses subject to measurement error and misclassification. *<br />
+> <small>Zhang, Q. and Yi, G. Y. (2022)<br /></small>
+> Biometrics. [https://doi.org/10.1111/biom.13623](https://doi.org/10.1111/biom.13623) 
